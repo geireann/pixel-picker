@@ -15,6 +15,11 @@ export class CanvasRenderer {
   private width = 256;
   private height = 256;
 
+  private isAnimLoopRunning = false;
+  private lastViewport: ViewportState | null = null;
+  private lastSelectedCoord: { x: number; y: number } | null = null;
+  private lastHoverCoord: { x: number; y: number } | null = null;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -50,20 +55,22 @@ export class CanvasRenderer {
     if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
       this.activeFlips.set(`${x},${y}`, {
         startTime: performance.now(),
-        duration: 240
+        duration: 280
       });
+      this.startAnimationLoop();
     }
   }
 
   /**
    * O(1) Single Pixel Render Update
-   * Re-renders ONLY the specified pixel on the offscreen canvas and triggers Solari flip animation.
+   * Re-renders ONLY the specified pixel on the offscreen canvas and plays the 280ms Solari mechanical flip flicker animation.
    */
   public updateSinglePixel(pixel: Pixel) {
     const now = performance.now();
     this.pixelsMap.set(`${pixel.x},${pixel.y}`, pixel);
     this.drawSinglePixelToOffscreen(pixel);
-    this.activeFlips.set(`${pixel.x},${pixel.y}`, { startTime: now, duration: 240 });
+    this.activeFlips.set(`${pixel.x},${pixel.y}`, { startTime: now, duration: 280 });
+    this.startAnimationLoop();
   }
 
   public updatePixels(pixels: Pixel[]) {
@@ -71,8 +78,9 @@ export class CanvasRenderer {
     pixels.forEach(p => {
       this.pixelsMap.set(`${p.x},${p.y}`, p);
       this.drawSinglePixelToOffscreen(p);
-      this.activeFlips.set(`${p.x},${p.y}`, { startTime: now, duration: 240 });
+      this.activeFlips.set(`${p.x},${p.y}`, { startTime: now, duration: 280 });
     });
+    this.startAnimationLoop();
   }
 
   public setAllPixels(pixels: Pixel[]) {
@@ -101,7 +109,31 @@ export class CanvasRenderer {
     this.offscreenCtx.fillRect(x, y + 0.48, 1, 0.04);
   }
 
+  private startAnimationLoop() {
+    if (this.isAnimLoopRunning) return;
+    this.isAnimLoopRunning = true;
+
+    const step = () => {
+      if (this.activeFlips.size === 0) {
+        this.isAnimLoopRunning = false;
+        return;
+      }
+
+      if (this.lastViewport) {
+        this.render(this.lastViewport, this.lastSelectedCoord, this.lastHoverCoord);
+      }
+
+      requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  }
+
   public render(viewport: ViewportState, selectedCoord: { x: number; y: number } | null, hoverCoord: { x: number; y: number } | null) {
+    this.lastViewport = viewport;
+    this.lastSelectedCoord = selectedCoord;
+    this.lastHoverCoord = hoverCoord;
+
     const screenW = this.canvas.width;
     const screenH = this.canvas.height;
     const now = performance.now();
@@ -169,7 +201,6 @@ export class CanvasRenderer {
 
     // Character Rendering & Spatial View Frustum Culling
     const fontSize = Math.floor(viewport.zoom * 0.78);
-    let hasActiveFlips = false;
 
     // Fast Frustum Culling Bounds in Grid Units
     const minGridX = Math.max(0, Math.floor(-viewport.panX / viewport.zoom));
@@ -193,7 +224,6 @@ export class CanvasRenderer {
         if (elapsed < flipAnim.duration) {
           isFlipping = true;
           flipProgress = elapsed / flipAnim.duration;
-          hasActiveFlips = true;
         } else {
           this.activeFlips.delete(coordKey);
         }
@@ -205,24 +235,6 @@ export class CanvasRenderer {
       const pixelHeight = viewport.zoom;
       const screenLeft = pixel.x * viewport.zoom + viewport.panX;
       const screenTop = pixel.y * viewport.zoom + viewport.panY;
-
-      // Render Solari Split-Flap Flicker Effect on edit
-      if (isFlipping) {
-        this.ctx.save();
-        this.ctx.translate(screenLeft, screenTop);
-
-        if (flipProgress < 0.4) {
-          this.ctx.fillStyle = 'rgba(9, 9, 11, 0.2)';
-          this.ctx.fillRect(0, 0, pixelWidth, pixelHeight * 0.5);
-        } else if (flipProgress < 0.7) {
-          this.ctx.fillStyle = '#09090b';
-          this.ctx.fillRect(0, pixelHeight * 0.45, pixelWidth, pixelHeight * 0.1);
-        } else {
-          this.ctx.fillStyle = 'rgba(9, 9, 11, 0.1)';
-          this.ctx.fillRect(0, pixelHeight * 0.5, pixelWidth, pixelHeight * 0.5);
-        }
-        this.ctx.restore();
-      }
 
       // Draw Characters (Letters & Numbers)
       if (fontSize >= 4 && (pixel.type === 'letter' || pixel.type === 'number')) {
@@ -236,11 +248,31 @@ export class CanvasRenderer {
 
         this.ctx.restore();
       }
-    });
 
-    if (hasActiveFlips) {
-      requestAnimationFrame(() => this.render(viewport, selectedCoord, hoverCoord));
-    }
+      // Render Dynamic Solari Split-Flap Mechanical Flicker Overlay
+      if (isFlipping) {
+        this.ctx.save();
+        this.ctx.translate(screenLeft, screenTop);
+
+        if (flipProgress < 0.35) {
+          // Phase 1: Top flap drops down with mechanical shadow
+          const flapHeight = pixelHeight * 0.5 * (1 - flipProgress / 0.35);
+          this.ctx.fillStyle = 'rgba(9, 9, 11, 0.4)';
+          this.ctx.fillRect(0, 0, pixelWidth, Math.max(1, flapHeight));
+        } else if (flipProgress < 0.65) {
+          // Phase 2: Mechanical split seam click across horizontal axis
+          this.ctx.fillStyle = '#09090b';
+          this.ctx.fillRect(0, pixelHeight * 0.44, pixelWidth, Math.max(2, pixelHeight * 0.12));
+        } else {
+          // Phase 3: Bottom flap settles with subtle settling shadow
+          const shadowProgress = (1 - (flipProgress - 0.65) / 0.35);
+          this.ctx.fillStyle = `rgba(9, 9, 11, ${0.3 * shadowProgress})`;
+          this.ctx.fillRect(0, pixelHeight * 0.5, pixelWidth, pixelHeight * 0.5);
+        }
+
+        this.ctx.restore();
+      }
+    });
   }
 
   public screenToBoardCoord(screenX: number, screenY: number, viewport: ViewportState): { x: number; y: number } | null {
