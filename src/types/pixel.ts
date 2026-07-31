@@ -1,6 +1,6 @@
 export type PixelType = 'color' | 'letter' | 'number';
 
-export type BoardPreset = '6x22' | '256x256' | '1080x1080';
+export type BoardPreset = '22x6' | '256x256' | '1080x1080';
 
 export interface BoardConfig {
   presetId: BoardPreset;
@@ -22,11 +22,11 @@ export const BOARD_PRESETS: Record<BoardPreset, BoardConfig> = {
     height: 256,
     label: '256 x 256 Canvas'
   },
-  '6x22': {
-    presetId: '6x22',
+  '22x6': {
+    presetId: '22x6',
     width: 22,
     height: 6,
-    label: '6 x 22 Micro'
+    label: '22 x 6 Micro'
   }
 };
 

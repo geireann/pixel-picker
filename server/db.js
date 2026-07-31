@@ -17,7 +17,7 @@ const db = new sqlite3.Database(dbPath);
 export const BOARD_BOUNDS = {
   '1080x1080': { width: 1080, height: 1080 },
   '256x256': { width: 256, height: 256 },
-  '6x22': { width: 22, height: 6 }
+  '22x6': { width: 22, height: 6 }
 };
 
 function runSql(sql, params = []) {
@@ -101,23 +101,23 @@ async function seedInitialDataIfEmpty() {
   const row = await getOneSql('SELECT COUNT(*) as count FROM pixels');
   if (row && row.count > 0) return;
 
-  console.log('Seeding initial board states (1080x1080, 256x256, 6x22)...');
+  console.log('Seeding initial board states (1080x1080, 256x256, 22x6)...');
   const now = Date.now();
 
-  // Seed 6x22 (Micro Board "PIXEL PICKER")
-  const text6x22 = "PIXEL PICKER";
-  const startX = Math.floor((22 - text6x22.length) / 2);
-  for (let i = 0; i < text6x22.length; i++) {
+  // Seed 22x6 (Micro Board "PIXEL PICKER")
+  const text22x6 = "PIXEL PICKER";
+  const startX = Math.floor((22 - text22x6.length) / 2);
+  for (let i = 0; i < text22x6.length; i++) {
     await savePixelEdit({
-      boardId: '6x22',
+      boardId: '22x6',
       x: startX + i,
       y: 2,
       type: 'letter',
-      val: text6x22[i],
+      val: text22x6[i],
       textColor: '#09090b',
       bgColor: '#ffffff',
       timestamp: now,
-      authorHash: 'seed_6x22'
+      authorHash: 'seed_22x6'
     });
   }
 

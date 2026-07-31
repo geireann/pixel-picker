@@ -3,7 +3,7 @@ import type { BoardPreset } from '../types/pixel';
 export function getPresetFromPath(pathname: string = window.location.pathname): BoardPreset {
   const path = pathname.toLowerCase().replace(/\/$/, '');
 
-  if (path === '/6x22') return '6x22';
+  if (path === '/22x6') return '22x6';
   if (path === '/256x256') return '256x256';
   if (path === '/1080x1080') return '1080x1080';
 

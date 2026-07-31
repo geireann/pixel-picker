@@ -76,7 +76,7 @@ app.post('/api/config/ratelimit', (req, res) => {
   res.json({ success: true, config: RateLimiterConfig });
 });
 
-// SPA Route Fallback for /6x22, /256x256, /1080x1080, and /
+// SPA Route Fallback for /22x6, /256x256, /1080x1080, and /
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
