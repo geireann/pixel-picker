@@ -11,6 +11,13 @@ export class BoardService implements IBoardService {
   private firestoreBaseUrl = 'https://firestore.googleapis.com/v1/projects/geireann/databases/(default)/documents/pixels';
   private lastKnownTimestamps: Map<string, number> = new Map();
 
+  // Exponential backoff state for 429 rate limit handling
+  private pollIntervalMs = 10_000;          // 10s baseline (was 800ms)
+  private readonly MIN_POLL_MS = 10_000;    // Floor: 10 seconds
+  private readonly MAX_POLL_MS = 60_000;    // Ceiling: 60 seconds
+  private consecutiveErrors = 0;
+  private isRateLimited = false;
+
   async fetchInitialBoard(preset: BoardPreset = '1080x1080'): Promise<Pixel[]> {
     try {
       const res = await fetch(`/api/board?preset=${preset}`);
@@ -37,7 +44,28 @@ export class BoardService implements IBoardService {
   private async fetchFromFirestore(preset: BoardPreset): Promise<Pixel[]> {
     try {
       const res = await fetch(this.firestoreBaseUrl);
+
+      // Handle 429 rate limiting with exponential backoff
+      if (res.status === 429) {
+        this.consecutiveErrors++;
+        this.isRateLimited = true;
+        const retryAfter = res.headers.get('Retry-After');
+        if (retryAfter) {
+          this.pollIntervalMs = Math.min(parseInt(retryAfter, 10) * 1000, this.MAX_POLL_MS);
+        } else {
+          this.pollIntervalMs = Math.min(this.MIN_POLL_MS * Math.pow(2, this.consecutiveErrors), this.MAX_POLL_MS);
+        }
+        console.warn(`Firestore 429 rate limited. Backing off to ${this.pollIntervalMs / 1000}s`);
+        return [];
+      }
+
       if (!res.ok) return [];
+
+      // Success — reset backoff state
+      this.consecutiveErrors = 0;
+      this.isRateLimited = false;
+      this.pollIntervalMs = this.MIN_POLL_MS;
+
       const data = await res.json();
       if (!data.documents) return [];
 
@@ -58,13 +86,20 @@ export class BoardService implements IBoardService {
         })
         .filter((p: Pixel) => (p.boardId || '1080x1080') === preset);
     } catch (err) {
+      this.consecutiveErrors++;
+      this.pollIntervalMs = Math.min(this.MIN_POLL_MS * Math.pow(2, this.consecutiveErrors), this.MAX_POLL_MS);
       console.warn('Failed to fetch pixels from Cloud Firestore', err);
       return [];
     }
   }
 
   public subscribeToCloudRealtime(preset: BoardPreset, onPixelUpdate: (pixel: Pixel) => void): () => void {
-    const timer = setInterval(async () => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+      if (cancelled) return;
+
       try {
         const currentPixels = await this.fetchFromFirestore(preset);
         currentPixels.forEach(p => {
@@ -76,11 +111,22 @@ export class BoardService implements IBoardService {
           }
         });
       } catch (err) {
-        // Silently handle poll errors
+        // Silently handle poll errors — backoff already applied in fetchFromFirestore
       }
-    }, 800);
 
-    return () => clearInterval(timer);
+      // Schedule next poll using current (possibly backed-off) interval
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, this.pollIntervalMs);
+      }
+    };
+
+    // Initial poll after baseline delay
+    timeoutId = setTimeout(poll, this.pollIntervalMs);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }
 
   async savePixelToFirestore(pixel: Pixel): Promise<void> {
