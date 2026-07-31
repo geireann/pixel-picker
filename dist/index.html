@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Pixel Picker — Realtime Pixel Board</title>
+  <meta name="description" content="A collaborative mechanical split-flap pixel canvas with live realtime editing, time travel timeline, and clean neutral aesthetic." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f4f4f5;
+      font-family: 'Space Mono', monospace;
+      color: #09090b;
+      -webkit-font-smoothing: antialiased;
+    }
+    #main-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-CTjHfFDE.js"></script>
+</head>
+<body>
+  <main id="main-container">
+    <app-canvas-board id="canvas-board"></app-canvas-board>
+    <app-editor-panel id="editor-panel"></app-editor-panel>
+    <app-history-panel id="history-panel"></app-history-panel>
+    <app-time-scrubber id="time-scrubber"></app-time-scrubber>
+    <app-intro-modal id="intro-modal"></app-intro-modal>
+  </main>
+
+</body>
+</html>
