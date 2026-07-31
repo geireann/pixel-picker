@@ -6,7 +6,7 @@ import { CanvasRenderer } from '../../utils/canvas-renderer';
 import { TouchGestureHandler } from '../../utils/touch-gesture';
 import { boardStore } from '../../store/board-store';
 import { editorStore } from '../../store/editor-store';
-import type { PixelType } from '../../types/pixel';
+import type { PixelType, Pixel } from '../../types/pixel';
 
 @customElement('app-canvas-board')
 export class AppCanvasBoard extends LitElement {
@@ -21,6 +21,7 @@ export class AppCanvasBoard extends LitElement {
 
   private renderer: CanvasRenderer | null = null;
   private unsubscribeBoardStore: (() => void) | null = null;
+  private unsubscribeSinglePixelStore: (() => void) | null = null;
   private unsubscribeEditorStore: (() => void) | null = null;
   private boundKeyDownHandler: ((e: KeyboardEvent) => void) | null = null;
   private boundKeyUpHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -67,11 +68,20 @@ export class AppCanvasBoard extends LitElement {
     };
     window.addEventListener('time-travel-closed', this.boundTimeTravelClosedHandler);
 
+    // Full Board Load / Reset
     this.unsubscribeBoardStore = boardStore.subscribe(() => {
       if (this.renderer) {
         const vp = boardStore.getViewport();
         this.renderer.setDimensions(vp.boardWidth, vp.boardHeight);
         this.renderer.setAllPixels(boardStore.getPixels());
+        this.requestRender();
+      }
+    });
+
+    // O(1) Targeted Single Pixel Update Listener
+    this.unsubscribeSinglePixelStore = boardStore.onSinglePixelUpdated((pixel: Pixel) => {
+      if (this.renderer) {
+        this.renderer.updateSinglePixel(pixel);
         this.requestRender();
       }
     });
@@ -86,6 +96,7 @@ export class AppCanvasBoard extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.unsubscribeBoardStore?.();
+    this.unsubscribeSinglePixelStore?.();
     this.unsubscribeEditorStore?.();
     if (this.boundKeyDownHandler) {
       window.removeEventListener('keydown', this.boundKeyDownHandler);

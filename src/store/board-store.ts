@@ -3,6 +3,7 @@ import { BOARD_PRESETS } from '../types/pixel';
 import { getPresetFromPath } from '../utils/router';
 
 export type StoreListener = () => void;
+export type PixelUpdateListener = (pixel: Pixel) => void;
 
 class BoardStore {
   private pixelsMap: Map<string, Pixel> = new Map();
@@ -18,6 +19,7 @@ class BoardStore {
   private activeUsers = 1;
   private isLive = true;
   private listeners: Set<StoreListener> = new Set();
+  private pixelListeners: Set<PixelUpdateListener> = new Set();
 
   public getPreset(): BoardPreset {
     return this.activePreset;
@@ -47,7 +49,22 @@ class BoardStore {
   }
 
   public updatePixel(pixel: Pixel) {
-    this.pixelsMap.set(`${pixel.x},${pixel.y}`, pixel);
+    const key = `${pixel.x},${pixel.y}`;
+    const existing = this.pixelsMap.get(key);
+
+    // Skip duplicate renders if pixel value and colors haven't changed
+    if (
+      existing &&
+      existing.val === pixel.val &&
+      existing.type === pixel.type &&
+      existing.textColor === pixel.textColor &&
+      existing.bgColor === pixel.bgColor
+    ) {
+      return;
+    }
+
+    this.pixelsMap.set(key, pixel);
+    this.pixelListeners.forEach(fn => fn(pixel));
     this.notify();
   }
 
@@ -81,6 +98,11 @@ class BoardStore {
   public subscribe(fn: StoreListener) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  public onSinglePixelUpdated(fn: PixelUpdateListener) {
+    this.pixelListeners.add(fn);
+    return () => this.pixelListeners.delete(fn);
   }
 
   private notify() {

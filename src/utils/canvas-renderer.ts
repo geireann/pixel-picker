@@ -55,6 +55,17 @@ export class CanvasRenderer {
     }
   }
 
+  /**
+   * O(1) Single Pixel Render Update
+   * Re-renders ONLY the specified pixel on the offscreen canvas and triggers Solari flip animation.
+   */
+  public updateSinglePixel(pixel: Pixel) {
+    const now = performance.now();
+    this.pixelsMap.set(`${pixel.x},${pixel.y}`, pixel);
+    this.drawSinglePixelToOffscreen(pixel);
+    this.activeFlips.set(`${pixel.x},${pixel.y}`, { startTime: now, duration: 240 });
+  }
+
   public updatePixels(pixels: Pixel[]) {
     const now = performance.now();
     pixels.forEach(p => {
@@ -167,7 +178,7 @@ export class CanvasRenderer {
     const maxGridY = Math.min(boardH - 1, Math.ceil((screenH - viewport.panY) / viewport.zoom));
 
     this.pixelsMap.forEach((pixel) => {
-      // Spatial Frustum Check (essential for 1080x1080 performance!)
+      // Spatial Frustum Check
       if (pixel.x < minGridX || pixel.x > maxGridX || pixel.y < minGridY || pixel.y > maxGridY) {
         return;
       }

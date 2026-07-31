@@ -4,10 +4,12 @@ export interface IBoardService {
   fetchInitialBoard(preset?: BoardPreset): Promise<Pixel[]>;
   fetchSnapshotAt(timestamp: number, preset?: BoardPreset): Promise<Pixel[]>;
   savePixelToFirestore(pixel: Pixel): Promise<void>;
+  subscribeToCloudRealtime(preset: BoardPreset, onPixelUpdate: (pixel: Pixel) => void): () => void;
 }
 
 export class BoardService implements IBoardService {
   private firestoreBaseUrl = 'https://firestore.googleapis.com/v1/projects/geireann/databases/(default)/documents/pixels';
+  private lastKnownTimestamps: Map<string, number> = new Map();
 
   async fetchInitialBoard(preset: BoardPreset = '1080x1080'): Promise<Pixel[]> {
     try {
@@ -15,6 +17,9 @@ export class BoardService implements IBoardService {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.pixels && data.pixels.length > 0) {
+          data.pixels.forEach((p: Pixel) => {
+            if (p.updatedAt) this.lastKnownTimestamps.set(`${preset}_${p.x}_${p.y}`, p.updatedAt);
+          });
           return data.pixels;
         }
       }
@@ -22,7 +27,11 @@ export class BoardService implements IBoardService {
       // Local server unavailable -> Fall back to Cloud Firestore
     }
 
-    return this.fetchFromFirestore(preset);
+    const pixels = await this.fetchFromFirestore(preset);
+    pixels.forEach(p => {
+      if (p.updatedAt) this.lastKnownTimestamps.set(`${preset}_${p.x}_${p.y}`, p.updatedAt);
+    });
+    return pixels;
   }
 
   private async fetchFromFirestore(preset: BoardPreset): Promise<Pixel[]> {
@@ -54,9 +63,30 @@ export class BoardService implements IBoardService {
     }
   }
 
+  public subscribeToCloudRealtime(preset: BoardPreset, onPixelUpdate: (pixel: Pixel) => void): () => void {
+    const timer = setInterval(async () => {
+      try {
+        const currentPixels = await this.fetchFromFirestore(preset);
+        currentPixels.forEach(p => {
+          const key = `${preset}_${p.x}_${p.y}`;
+          const prevTs = this.lastKnownTimestamps.get(key) || 0;
+          if (p.updatedAt && p.updatedAt > prevTs) {
+            this.lastKnownTimestamps.set(key, p.updatedAt);
+            onPixelUpdate(p);
+          }
+        });
+      } catch (err) {
+        // Silently handle poll errors
+      }
+    }, 800);
+
+    return () => clearInterval(timer);
+  }
+
   async savePixelToFirestore(pixel: Pixel): Promise<void> {
     const docId = `${pixel.boardId || '1080x1080'}_${pixel.x}_${pixel.y}`;
     const url = `${this.firestoreBaseUrl}/${docId}`;
+    this.lastKnownTimestamps.set(`${pixel.boardId || '1080x1080'}_${pixel.x}_${pixel.y}`, pixel.updatedAt || Date.now());
 
     const payload = {
       fields: {

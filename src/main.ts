@@ -18,6 +18,7 @@ import type { EditPixelPayload, Pixel } from './types/pixel';
 const boardService = new BoardService();
 const wsService = new WebSocketService();
 const historyService = new HistoryService();
+let unsubscribeCloudRealtime: (() => void) | null = null;
 
 // Initial Data & Route Fetch
 async function initApp() {
@@ -37,6 +38,14 @@ async function initApp() {
 
   const timeline = await historyService.fetchHistoryTimeline(currentPreset);
   historyStore.setTimeline(timeline.earliest, timeline.latest, timeline.latest, timeline.totalEdits);
+
+  // Subscribe to Cloud Realtime Delta Stream across devices
+  if (unsubscribeCloudRealtime) unsubscribeCloudRealtime();
+  unsubscribeCloudRealtime = boardService.subscribeToCloudRealtime(currentPreset, (pixel: Pixel) => {
+    if (boardStore.getIsLive()) {
+      boardStore.updatePixel(pixel);
+    }
+  });
 }
 
 initApp();
@@ -46,7 +55,7 @@ window.addEventListener('popstate', () => {
   initApp();
 });
 
-// WebSocket Event Listeners
+// WebSocket Event Listeners (Local & Cloud WS Sync)
 wsService.subscribe((event) => {
   if (event.type === 'INIT') {
     const { pixels, activeUsers, preset } = event.data;
@@ -61,11 +70,6 @@ wsService.subscribe((event) => {
 
     if (targetBoard === currentPreset && boardStore.getIsLive()) {
       boardStore.updatePixel(pixel);
-
-      const canvasBoard = document.getElementById('canvas-board') as any;
-      if (canvasBoard && canvasBoard.triggerPixelFlip) {
-        canvasBoard.triggerPixelFlip(pixel.x, pixel.y);
-      }
     }
   } else if (event.type === 'USER_COUNT_UPDATED') {
     updateActiveUsersUI(event.data.activeUsers);
@@ -98,17 +102,13 @@ window.addEventListener('apply-edit', async (e: Event) => {
     boardId
   };
 
-  // Immediate local store update & flip animation
+  // Immediate local O(1) store update & flip animation
   boardStore.updatePixel(pixel);
-  const canvasBoard = document.getElementById('canvas-board') as any;
-  if (canvasBoard && canvasBoard.triggerPixelFlip) {
-    canvasBoard.triggerPixelFlip(pixel.x, pixel.y);
-  }
 
   // 1. Send via WebSocket if connected
   wsService.sendEdit({ ...payload, boardId });
 
-  // 2. Persist directly to Cloud Firestore (guarantees 100% cloud persistence without local server)
+  // 2. Persist directly to Cloud Firestore
   await boardService.savePixelToFirestore(pixel);
 
   analyticsService.trackEvent('apply_edit', { boardId, type: payload.pixelType });
