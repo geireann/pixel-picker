@@ -12,7 +12,7 @@ import { boardStore } from './store/board-store';
 import { editorStore } from './store/editor-store';
 import { historyStore } from './store/history-store';
 import { getPresetFromPath } from './utils/router';
-import type { EditPixelPayload, Pixel, BoardPreset } from './types/pixel';
+import type { EditPixelPayload, Pixel } from './types/pixel';
 
 // Initialize Services
 const boardService = new BoardService();
@@ -81,14 +81,37 @@ function updateActiveUsersUI(count: number) {
 }
 
 // App Level Event Delegation & Controller
-window.addEventListener('apply-edit', (e: Event) => {
+window.addEventListener('apply-edit', async (e: Event) => {
   const customEvt = e as CustomEvent<EditPixelPayload>;
-  const payload = {
-    ...customEvt.detail,
-    boardId: boardStore.getPreset()
+  const payload = customEvt.detail;
+  const boardId = boardStore.getPreset();
+
+  const pixel: Pixel = {
+    x: payload.x,
+    y: payload.y,
+    type: payload.pixelType,
+    val: payload.val,
+    textColor: payload.textColor,
+    bgColor: payload.bgColor,
+    updatedAt: Date.now(),
+    lastAuthor: 'client',
+    boardId
   };
-  wsService.sendEdit(payload);
-  analyticsService.trackEvent('apply_edit', { boardId: payload.boardId, type: payload.pixelType });
+
+  // Immediate local store update & flip animation
+  boardStore.updatePixel(pixel);
+  const canvasBoard = document.getElementById('canvas-board') as any;
+  if (canvasBoard && canvasBoard.triggerPixelFlip) {
+    canvasBoard.triggerPixelFlip(pixel.x, pixel.y);
+  }
+
+  // 1. Send via WebSocket if connected
+  wsService.sendEdit({ ...payload, boardId });
+
+  // 2. Persist directly to Cloud Firestore (guarantees 100% cloud persistence without local server)
+  await boardService.savePixelToFirestore(pixel);
+
+  analyticsService.trackEvent('apply_edit', { boardId, type: payload.pixelType });
 });
 
 window.addEventListener('toggle-time-travel', (e: Event) => {
