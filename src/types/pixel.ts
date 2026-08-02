@@ -1,4 +1,5 @@
-export type PixelType = 'color' | 'letter' | 'number';
+export type PixelType = 'color' | 'letter' | 'number' | 'brush';
+export type BrushSize = 1 | 3 | 5;
 
 export type BoardPreset = '22x6' | '256x256' | '1080x1080';
 

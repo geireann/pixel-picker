@@ -84,24 +84,62 @@ export const editorPanelStyles = css`
 
   .tab-btn {
     flex: 1;
-    padding: 5px 2px;
+    padding: 5px 1px;
     border: none;
     background: none;
     color: #71717a;
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     font-family: 'Space Mono', monospace;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
   }
 
   .tab-btn.active {
     background: #ffffff;
     color: #09090b;
     border: 1px solid #09090b;
+  }
+
+  .brush-size-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .brush-label {
+    font-size: 0.65rem;
+    color: #71717a;
+    font-weight: 700;
+    width: 38px;
+  }
+
+  .brush-size-group {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+  }
+
+  .brush-size-btn {
+    flex: 1;
+    padding: 3px 0;
+    background: #f4f4f5;
+    border: 1px solid #d4d4d8;
+    color: #71717a;
+    font-size: 0.65rem;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .brush-size-btn.active {
+    background: #09090b;
+    color: #ffffff;
+    border-color: #09090b;
   }
 
   .input-area {

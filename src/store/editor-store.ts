@@ -1,10 +1,11 @@
-import type { PixelType } from '../types/pixel';
+import type { PixelType, BrushSize } from '../types/pixel';
 
 export type EditorListener = () => void;
 
 class EditorStore {
   private selectedCoord: { x: number; y: number } | null = null;
   private activeTab: PixelType = 'color';
+  private brushSize: BrushSize = 1;
   private colorVal = '#38bdf8';
   private letterVal = 'P';
   private numberVal = '7';
@@ -30,13 +31,23 @@ class EditorStore {
     this.notify();
   }
 
+  public getBrushSize(): BrushSize {
+    return this.brushSize;
+  }
+
+  public setBrushSize(size: BrushSize) {
+    this.brushSize = size;
+    this.notify();
+  }
+
   public getValues() {
     return {
       colorVal: this.colorVal,
       letterVal: this.letterVal,
       numberVal: this.numberVal,
       textColor: this.textColor,
-      bgColor: this.bgColor
+      bgColor: this.bgColor,
+      brushSize: this.brushSize
     };
   }
 

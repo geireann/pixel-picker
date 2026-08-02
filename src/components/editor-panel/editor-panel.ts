@@ -3,7 +3,7 @@ import { customElement } from 'lit/decorators.js';
 import { editorPanelStyles } from './editor-panel.css';
 import { renderEditorPanelPresentation } from './editor-panel-presentation';
 import { editorStore } from '../../store/editor-store';
-import type { PixelType } from '../../types/pixel';
+import type { PixelType, BrushSize } from '../../types/pixel';
 
 @customElement('app-editor-panel')
 export class AppEditorPanel extends LitElement {
@@ -44,12 +44,13 @@ export class AppEditorPanel extends LitElement {
     let val = vals.colorVal;
     if (tab === 'letter') val = vals.letterVal || 'A';
     if (tab === 'number') val = vals.numberVal || '0';
+    const pixelType: PixelType = tab === 'brush' ? 'color' : tab;
 
     this.dispatchEvent(new CustomEvent('apply-edit', {
       detail: {
         x: coord.x,
         y: coord.y,
-        pixelType: tab,
+        pixelType,
         val,
         textColor: vals.textColor,
         bgColor: vals.bgColor
@@ -69,6 +70,7 @@ export class AppEditorPanel extends LitElement {
       activeTab,
       ...vals,
       onTabChange: (tab: PixelType) => editorStore.setActiveTab(tab),
+      onBrushSizeChange: (size: BrushSize) => editorStore.setBrushSize(size),
       onColorChange: (val: string) => editorStore.setValues({ colorVal: val }),
       onLetterChange: (val: string) => {
         editorStore.setValues({ letterVal: val.toUpperCase() });

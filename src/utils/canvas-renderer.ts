@@ -1,4 +1,5 @@
 import type { Pixel, ViewportState } from '../types/pixel';
+import { editorStore } from '../store/editor-store';
 
 interface FlipAnimation {
   startTime: number;
@@ -180,11 +181,34 @@ export class CanvasRenderer {
     this.ctx.lineWidth = 0.25;
     this.ctx.strokeRect(0, 0, boardW, boardH);
 
-    // Hover Highlight Box
+    // Hover Highlight Box (single pixel or brush footprint)
     if (hoverCoord && hoverCoord.x >= 0 && hoverCoord.x < boardW && hoverCoord.y >= 0 && hoverCoord.y < boardH) {
-      this.ctx.strokeStyle = 'rgba(9, 9, 11, 0.6)';
-      this.ctx.lineWidth = 0.15;
-      this.ctx.strokeRect(hoverCoord.x, hoverCoord.y, 1, 1);
+      const activeTab = editorStore.getActiveTab();
+      const brushSize = editorStore.getBrushSize();
+
+      if (activeTab === 'brush') {
+        const radius = Math.floor(brushSize / 2);
+        const startX = Math.max(0, hoverCoord.x - radius);
+        const endX = Math.min(boardW - 1, hoverCoord.x + radius);
+        const startY = Math.max(0, hoverCoord.y - radius);
+        const endY = Math.min(boardH - 1, hoverCoord.y + radius);
+
+        const widthInPixels = endX - startX + 1;
+        const heightInPixels = endY - startY + 1;
+
+        // Draw outer brush boundary box
+        this.ctx.strokeStyle = '#09090b';
+        this.ctx.lineWidth = 0.25;
+        this.ctx.strokeRect(startX, startY, widthInPixels, heightInPixels);
+
+        // Semi-transparent brush fill highlight
+        this.ctx.fillStyle = 'rgba(9, 9, 11, 0.18)';
+        this.ctx.fillRect(startX, startY, widthInPixels, heightInPixels);
+      } else {
+        this.ctx.strokeStyle = 'rgba(9, 9, 11, 0.6)';
+        this.ctx.lineWidth = 0.15;
+        this.ctx.strokeRect(hoverCoord.x, hoverCoord.y, 1, 1);
+      }
     }
 
     // Selected Pixel Box (Solid Black Selection)

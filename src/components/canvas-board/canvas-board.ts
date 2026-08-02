@@ -14,6 +14,7 @@ export class AppCanvasBoard extends LitElement {
 
   @state() hoverCoord: { x: number; y: number } | null = null;
   @state() isDragging = false;
+  @state() isPainting = false;
   @state() isTimeTravelOpen = false;
   private isSpacePressed = false;
   private dragStartX = 0;
@@ -241,7 +242,67 @@ export class AppCanvasBoard extends LitElement {
     boardStore.setViewport({ panX: vp.panX + dx, panY: vp.panY + dy });
   }
 
+  private paintAt(clientX: number, clientY: number) {
+    if (!this.renderer) return;
+
+    const rect = this.getBoundingClientRect();
+    const screenX = clientX - rect.left;
+    const screenY = clientY - rect.top;
+    const vp = boardStore.getViewport();
+
+    const centerCoord = this.renderer.screenToBoardCoord(screenX, screenY, vp);
+    if (!centerCoord) return;
+
+    const activeTab = editorStore.getActiveTab();
+    if (activeTab !== 'brush') return;
+
+    const brushSize = editorStore.getBrushSize();
+    const radius = Math.floor(brushSize / 2);
+    const vals = editorStore.getValues();
+    const boardId = boardStore.getPreset();
+
+    const startX = Math.max(0, centerCoord.x - radius);
+    const endX = Math.min(vp.boardWidth - 1, centerCoord.x + radius);
+    const startY = Math.max(0, centerCoord.y - radius);
+    const endY = Math.min(vp.boardHeight - 1, centerCoord.y + radius);
+
+    for (let px = startX; px <= endX; px++) {
+      for (let py = startY; py <= endY; py++) {
+        const existing = boardStore.getPixel(px, py);
+
+        // Deduplicate: avoid re-painting identical color
+        if (existing && existing.type === 'color' && existing.val === vals.colorVal) {
+          continue;
+        }
+
+        this.triggerPixelFlip(px, py);
+
+        this.dispatchEvent(new CustomEvent('apply-edit', {
+          detail: {
+            x: px,
+            y: py,
+            pixelType: 'color',
+            val: vals.colorVal,
+            textColor: vals.textColor || '#fafafa',
+            bgColor: vals.bgColor || '#18181b',
+            boardId
+          },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    }
+  }
+
   private handleMouseDown(e: MouseEvent) {
+    const activeTab = editorStore.getActiveTab();
+
+    if (e.button === 0 && activeTab === 'brush' && !this.isSpacePressed) {
+      this.isPainting = true;
+      this.paintAt(e.clientX, e.clientY);
+      return;
+    }
+
     if (e.button === 0 || e.button === 1 || this.isSpacePressed) {
       this.isDragging = true;
       this.dragStartX = e.clientX;
@@ -259,7 +320,9 @@ export class AppCanvasBoard extends LitElement {
       this.hoverCoord = this.renderer.screenToBoardCoord(screenX, screenY, vp);
     }
 
-    if (this.isDragging) {
+    if (this.isPainting) {
+      this.paintAt(e.clientX, e.clientY);
+    } else if (this.isDragging) {
       const dx = e.clientX - this.dragStartX;
       const dy = e.clientY - this.dragStartY;
       this.dragStartX = e.clientX;
@@ -269,9 +332,12 @@ export class AppCanvasBoard extends LitElement {
   }
 
   private handleMouseUp(e: MouseEvent) {
+    if (this.isPainting) {
+      this.isPainting = false;
+    }
     if (this.isDragging) {
       const dist = Math.hypot(e.clientX - this.dragStartX, e.clientY - this.dragStartY);
-      if (dist < 5 && !this.isSpacePressed && e.button === 0) {
+      if (dist < 5 && !this.isSpacePressed && e.button === 0 && editorStore.getActiveTab() !== 'brush') {
         this.handleTapAt(e.clientX, e.clientY);
       }
     }

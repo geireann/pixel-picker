@@ -14,6 +14,13 @@ export const iconPixelColor = html`
   </svg>
 `;
 
+// Pixelated Paint Brush Icon
+export const iconPixelBrush = html`
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 1L14 5L12 7L8 3L10 1ZM7 4L11 8L6 13H2V9L7 4ZM4 11V12H5L8 9L7 8L4 11Z" />
+  </svg>
+`;
+
 // Pixelated Letter 'A' Icon
 export const iconPixelLetter = html`
   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
