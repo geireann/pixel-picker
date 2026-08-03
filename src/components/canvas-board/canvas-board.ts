@@ -342,6 +342,9 @@ export class AppCanvasBoard extends LitElement {
     const activeTab = editorStore.getActiveTab();
     if (activeTab !== 'brush') return;
 
+    // Ensure inspector card re-opens and focuses on active center coordinate
+    editorStore.setSelectedCoord(centerCoord);
+
     const brushSize = editorStore.getBrushSize();
     const radius = Math.floor(brushSize / 2);
     const vals = editorStore.getValues();
@@ -423,7 +426,7 @@ export class AppCanvasBoard extends LitElement {
     }
     if (this.isDragging) {
       const dist = Math.hypot(e.clientX - this.dragStartX, e.clientY - this.dragStartY);
-      if (dist < 5 && !this.isSpacePressed && e.button === 0 && editorStore.getActiveTab() !== 'brush') {
+      if (dist < 5 && !this.isSpacePressed && e.button === 0) {
         this.handleTapAt(e.clientX, e.clientY);
       }
     }

@@ -9,7 +9,7 @@ export const editorPanelStyles = css`
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 240px;
+    width: 320px;
     background: #ffffff;
     border: 1px solid #d4d4d8;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -27,7 +27,7 @@ export const editorPanelStyles = css`
       right: auto;
       transform: translateX(-50%);
       width: calc(100% - 32px);
-      max-width: 280px;
+      max-width: 340px;
     }
   }
 
@@ -84,18 +84,18 @@ export const editorPanelStyles = css`
 
   .tab-btn {
     flex: 1;
-    padding: 5px 1px;
+    padding: 6px 4px;
     border: none;
     background: none;
     color: #71717a;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     font-family: 'Space Mono', monospace;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
   }
 
   .tab-btn.active {
