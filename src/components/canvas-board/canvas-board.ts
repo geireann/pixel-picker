@@ -188,20 +188,19 @@ export class AppCanvasBoard extends LitElement {
       return;
     }
 
-    // Backspace / Delete Handling
+    // Backspace / Delete Handling: Completely clears character AND removes color (resets to default blank white)
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
-      const vals = editorStore.getValues();
       this.triggerPixelFlip(selected.x, selected.y);
 
       this.dispatchEvent(new CustomEvent('apply-edit', {
         detail: {
           x: selected.x,
           y: selected.y,
-          pixelType: 'letter',
-          val: ' ',
-          textColor: vals.textColor || '#fafafa',
-          bgColor: vals.bgColor || '#18181b',
+          pixelType: 'color',
+          val: '#ffffff',
+          textColor: '#09090b',
+          bgColor: '#ffffff',
           boardId: boardStore.getPreset()
         },
         bubbles: true,
