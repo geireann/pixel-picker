@@ -19,6 +19,8 @@ export class AppCanvasBoard extends LitElement {
   private isSpacePressed = false;
   private dragStartX = 0;
   private dragStartY = 0;
+  private sTapCount = 0;
+  private sTapTimer: ReturnType<typeof setTimeout> | null = null;
 
   private renderer: CanvasRenderer | null = null;
   private unsubscribeBoardStore: (() => void) | null = null;
@@ -124,6 +126,29 @@ export class AppCanvasBoard extends LitElement {
       this.isSpacePressed = true;
       e.preventDefault();
       return;
+    }
+
+    // Triple-tap 'S' shortcut (Active ONLY on 22x6 board)
+    if (!isInput && (e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const currentPreset = boardStore.getPreset();
+      if (currentPreset === '22x6') {
+        this.sTapCount++;
+        if (this.sTapTimer) clearTimeout(this.sTapTimer);
+
+        if (this.sTapCount >= 3) {
+          this.sTapCount = 0;
+          e.preventDefault();
+          this.dispatchEvent(new CustomEvent('trigger-vestaboard-sync', {
+            bubbles: true,
+            composed: true
+          }));
+          return;
+        } else {
+          this.sTapTimer = setTimeout(() => {
+            this.sTapCount = 0;
+          }, 600);
+        }
+      }
     }
 
     const selected = editorStore.getSelectedCoord();

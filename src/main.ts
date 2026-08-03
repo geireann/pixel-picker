@@ -3,11 +3,17 @@ import './components/canvas-board/canvas-board';
 import './components/editor-panel/editor-panel';
 import './components/history-panel/history-panel';
 import './components/time-scrubber/time-scrubber';
+import './components/vestaboard-modal/vestaboard-modal';
 
 import { BoardService } from './services/board-service';
 import { WebSocketService } from './services/websocket-service';
 import { HistoryService } from './services/history-service';
 import { analyticsService } from './services/analytics-service';
+import {
+  getStoredVestaboardToken,
+  convertBoardToVestaboardMatrix,
+  sendToVestaboard
+} from './services/vestaboard-service';
 import { boardStore } from './store/board-store';
 import { editorStore } from './store/editor-store';
 import { historyStore } from './store/history-store';
@@ -150,4 +156,62 @@ window.addEventListener('return-live', async () => {
 window.addEventListener('open-help', () => {
   const introModal = document.getElementById('intro-modal') as any;
   if (introModal) introModal.open = true;
+});
+
+// Vestaboard Integration Controller
+async function performVestaboardSync() {
+  const token = getStoredVestaboardToken();
+  if (!token) {
+    const vestaModal = document.getElementById('vestaboard-modal') as any;
+    if (vestaModal) vestaModal.open = true;
+    return;
+  }
+
+  const matrix = convertBoardToVestaboardMatrix(boardStore.getPixels());
+  showVestaboardToast('Sending design to Vestaboard...');
+
+  const result = await sendToVestaboard(matrix, token);
+  showVestaboardToast(result.message, !result.success);
+}
+
+function showVestaboardToast(message: string, isError = false) {
+  let toast = document.getElementById('vestaboard-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'vestaboard-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #09090b;
+      color: #ffffff;
+      padding: 10px 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid #27272a;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      z-index: 200;
+      transition: opacity 0.2s ease;
+    `;
+    document.body.appendChild(toast);
+  }
+
+  toast.style.borderColor = isError ? '#e11d48' : '#16a34a';
+  toast.style.color = isError ? '#fecdd3' : '#ffffff';
+  toast.textContent = message;
+  toast.style.opacity = '1';
+
+  setTimeout(() => {
+    if (toast) toast.style.opacity = '0';
+  }, 4000);
+}
+
+window.addEventListener('trigger-vestaboard-sync', () => {
+  performVestaboardSync();
+});
+
+window.addEventListener('vestaboard-token-saved', () => {
+  performVestaboardSync();
 });
