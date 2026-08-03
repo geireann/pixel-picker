@@ -122,7 +122,10 @@ export class AppCanvasBoard extends LitElement {
     const targetEl = e.target as HTMLElement;
     const isInput = targetEl && (targetEl.tagName === 'INPUT' || targetEl.tagName === 'TEXTAREA');
 
-    if (e.key === ' ' && !isInput) {
+    const selected = editorStore.getSelectedCoord();
+
+    // Spacebar pan mode when NO cell is selected
+    if (e.key === ' ' && !isInput && !selected) {
       this.isSpacePressed = true;
       e.preventDefault();
       return;
@@ -151,7 +154,6 @@ export class AppCanvasBoard extends LitElement {
       }
     }
 
-    const selected = editorStore.getSelectedCoord();
     if (!selected) return;
 
     if (e.key === 'Escape') {
@@ -183,6 +185,60 @@ export class AppCanvasBoard extends LitElement {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       editorStore.setSelectedCoord({ x: selected.x, y: Math.min(vp.boardHeight - 1, selected.y + 1) });
+      return;
+    }
+
+    // Backspace / Delete Handling
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      const vals = editorStore.getValues();
+      this.triggerPixelFlip(selected.x, selected.y);
+
+      this.dispatchEvent(new CustomEvent('apply-edit', {
+        detail: {
+          x: selected.x,
+          y: selected.y,
+          pixelType: 'letter',
+          val: ' ',
+          textColor: vals.textColor || '#fafafa',
+          bgColor: vals.bgColor || '#18181b',
+          boardId: boardStore.getPreset()
+        },
+        bubbles: true,
+        composed: true
+      }));
+
+      // Move cursor left on backspace
+      if (selected.x > 0) {
+        editorStore.setSelectedCoord({ x: selected.x - 1, y: selected.y });
+      }
+      return;
+    }
+
+    // Spacebar Typing Handling (When cell is selected)
+    if (e.key === ' ') {
+      e.preventDefault();
+      const vals = editorStore.getValues();
+      this.triggerPixelFlip(selected.x, selected.y);
+
+      this.dispatchEvent(new CustomEvent('apply-edit', {
+        detail: {
+          x: selected.x,
+          y: selected.y,
+          pixelType: 'letter',
+          val: ' ',
+          textColor: vals.textColor || '#fafafa',
+          bgColor: vals.bgColor || '#18181b',
+          boardId: boardStore.getPreset()
+        },
+        bubbles: true,
+        composed: true
+      }));
+
+      // Auto advance cursor right
+      if (selected.x < vp.boardWidth - 1) {
+        editorStore.setSelectedCoord({ x: selected.x + 1, y: selected.y });
+      }
       return;
     }
 
