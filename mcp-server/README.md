@@ -1,36 +1,17 @@
-# Pixel Picker MCP Server (Model Context Protocol)
+# 🎨 Pixel Picker MCP Server (Model Context Protocol)
 
-The Pixel Picker MCP Server allows AI assistants (Google Antigravity, Claude, Gemini, Cursor) to **Read**, **Write**, and **Control** Pixel Picker boards programmatically.
+The Pixel Picker MCP Server provides a standard **Model Context Protocol (MCP)** interface for AI assistants (Google Antigravity, Claude, Gemini, Cursor) to **Read**, **Write**, and **Control** Pixel Picker boards programmatically.
 
----
-
-## 🛠️ Tools Exposed
-
-| Tool Name | Operation | Input Arguments | Description |
-|---|---|---|---|
-| `get_board` | **READ** | `preset` (`1080x1080`, `256x256`, `22x6`), `format` (`json`, `ascii_preview`) | Fetch active pixels and layout metadata. |
-| `get_pixel` | **READ** | `x`, `y`, `preset` | Inspect pixel state at specific coordinate. |
-| `set_pixel` | **WRITE** | `x`, `y`, `type`, `val`, `textColor`, `bgColor`, `preset` | Paint single pixel with character or color. |
-| `set_pixels_batch` | **WRITE** | `preset`, `pixels: [{x, y, type, val, textColor, bgColor}]` | Bulk paint pixel art, text banners, or designs. |
-| `clear_board` | **WRITE** | `preset` | Reset all active pixels on a board to blank white. |
-| `send_to_vestaboard` | **ACTION** | `token` (optional if env `VESTABOARD_TOKEN` set) | Convert 22x6 board state to Vestaboard matrix and post to cloud. |
+It operates seamlessly in both **Offline Local Mode** (zero network activity, local on-device file storage) and **Online Global Mode** (syncing directly with live Cloud Firestore & Vestaboard hardware).
 
 ---
 
-## 📦 Resources Exposed
+## 🚀 Quick Start & Offline Configuration
 
-| Resource URI | Description |
-|---|---|
-| `pixelpicker://board/1080x1080` | Live JSON snapshot of 1080x1080 Mega board |
-| `pixelpicker://board/256x256` | Live JSON snapshot of 256x256 Canvas board |
-| `pixelpicker://board/22x6` | Live JSON snapshot of 22x6 Micro board |
-| `pixelpicker://analytics/summary` | Live telemetry & pageview analytics summary |
+### 1. Running in Offline Local Mode (Recommended for Local Dev)
+Set `PIXEL_PICKER_MODE=offline` in your environment variables. All MCP read/write operations will be saved locally to `mcp-server/local-pixels.json` (or a custom file via `PIXEL_PICKER_LOCAL_FILE`).
 
----
-
-## 🚀 How to Register in AI Tools
-
-### 1. Google Antigravity / AGY MCP Config (`mcp_config.json`)
+#### Example `mcp_config.json` (Google Antigravity / AGY / Claude / Cursor)
 ```json
 {
   "mcpServers": {
@@ -38,6 +19,25 @@ The Pixel Picker MCP Server allows AI assistants (Google Antigravity, Claude, Ge
       "command": "node",
       "args": ["/Users/geireann/Documents/projects/pixel-picker/mcp-server/index.js"],
       "env": {
+        "PIXEL_PICKER_MODE": "offline",
+        "PIXEL_PICKER_LOCAL_FILE": "/Users/geireann/Documents/projects/pixel-picker/mcp-server/local-pixels.json"
+      }
+    }
+  }
+}
+```
+
+### 2. Running in Online Global Mode
+Omit `PIXEL_PICKER_MODE` or set it to `online`. Reads and writes will interact directly with the live global Cloud Firestore database (`https://pixel-picker-app.web.app`).
+
+```json
+{
+  "mcpServers": {
+    "pixel-picker": {
+      "command": "node",
+      "args": ["/Users/geireann/Documents/projects/pixel-picker/mcp-server/index.js"],
+      "env": {
+        "PIXEL_PICKER_MODE": "online",
         "VESTABOARD_TOKEN": "<YOUR_VESTABOARD_TOKEN_OPTIONAL>"
       }
     }
@@ -45,22 +45,35 @@ The Pixel Picker MCP Server allows AI assistants (Google Antigravity, Claude, Ge
 }
 ```
 
-### 2. Claude Desktop Config (`claude_desktop_config.json`)
-```json
-{
-  "mcpServers": {
-    "pixel-picker": {
-      "command": "node",
-      "args": ["/Users/geireann/Documents/projects/pixel-picker/mcp-server/index.js"]
-    }
-  }
-}
-```
+---
+
+## 🛠️ Complete MCP Tools Reference
+
+| Tool Name | Mode | Arguments | Description |
+|---|---|---|---|
+| `get_board` | **READ** | `preset` (`1080x1080`, `256x256`, `22x6`), `format` (`json`, `ascii_preview`) | Returns active board pixel array or ASCII art matrix preview. |
+| `get_pixel` | **READ** | `x`, `y`, `preset` | Returns single pixel object at coordinate `(x, y)`. |
+| `set_pixel` | **WRITE** | `x`, `y`, `type` (`color`/`letter`/`number`), `val`, `textColor`, `bgColor`, `preset` | Paints a single cell on the active board. |
+| `set_pixels_batch` | **WRITE** | `preset`, `pixels: [{x, y, type, val, textColor, bgColor}]` | Bulk paints multiple pixels in a single tool call (ideal for rendering text banners, pixel art, or shapes). |
+| `clear_board` | **WRITE** | `preset` | Resets all active pixels on a board to blank white. |
+| `send_to_vestaboard` | **ACTION** | `token` (optional) | Converts current 22x6 board matrix to Vestaboard character & flap codes and dispatches to hardware. |
 
 ---
 
-## 💻 Manual CLI Execution
-```bash
-# Launch MCP Server over STDIO
-pnpm mcp
-```
+## 📦 MCP Resources Exposed
+
+| Resource URI | Description |
+|---|---|
+| `pixelpicker://board/1080x1080` | Live JSON view of 1080x1080 Mega Board |
+| `pixelpicker://board/256x256` | Live JSON view of 256x256 Canvas Board |
+| `pixelpicker://board/22x6` | Live JSON view of 22x6 Micro Board |
+| `pixelpicker://analytics/summary` | Telemetry & active edit count summary |
+
+---
+
+## 💡 AI Prompting Examples
+
+* **Read Board**: *"Can you show me the current ASCII preview of the 22x6 board using `get_board`?"*
+* **Paint Pixel Art**: *"Use `set_pixels_batch` to paint a red heart at position (5,2) on the 22x6 board."*
+* **Render Text Banner**: *"Write 'HELLO WORLD' in white text on dark blue tiles on the top row of the 22x6 board."*
+* **Sync Vestaboard**: *"Send the current 22x6 board design to my Vestaboard using `send_to_vestaboard`."*

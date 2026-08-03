@@ -65,13 +65,65 @@ function closestVestaboardColor(hex) {
   return bestCode;
 }
 
-async function fetchFirestorePixels(preset = '1080x1080') {
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOCAL_STORAGE_FILE = process.env.PIXEL_PICKER_LOCAL_FILE || path.join(__dirname, 'local-pixels.json');
+const LOCAL_SERVER_URL = process.env.LOCAL_SERVER_URL || 'http://localhost:8080';
+
+function getLocalFilePixels() {
+  try {
+    if (fs.existsSync(LOCAL_STORAGE_FILE)) {
+      const raw = fs.readFileSync(LOCAL_STORAGE_FILE, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    // Ignore read errors
+  }
+  return [];
+}
+
+function saveLocalFilePixel(pixel) {
+  try {
+    const existing = getLocalFilePixels();
+    const filtered = existing.filter(p => !(p.boardId === pixel.boardId && p.x === pixel.x && p.y === pixel.y));
+    filtered.push(pixel);
+    fs.writeFileSync(LOCAL_STORAGE_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+  } catch (err) {
+    // Ignore write errors
+  }
+}
+
+async function fetchPixels(preset = '1080x1080') {
+  // 1. Try local dev server HTTP API if available
+  try {
+    const res = await fetch(`${LOCAL_SERVER_URL}/api/board?preset=${preset}`, { signal: AbortSignal.timeout(800) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.pixels && Array.isArray(data.pixels)) {
+        return data.pixels;
+      }
+    }
+  } catch (err) {
+    // Local server offline, continue
+  }
+
+  // 2. Try Local File Storage (Offline Mode)
+  const localPixels = getLocalFilePixels().filter(p => (p.boardId || '1080x1080') === preset);
+  if (localPixels.length > 0 || process.env.PIXEL_PICKER_MODE === 'offline') {
+    return localPixels;
+  }
+
+  // 3. Fallback to Cloud Firestore REST API
   try {
     const url = `${FIRESTORE_BASE_URL}/pixels`;
     const res = await fetch(url);
-    if (!res.ok) return [];
+    if (!res.ok) return localPixels;
     const data = await res.json();
-    if (!data.documents) return [];
+    if (!data.documents) return localPixels;
 
     return data.documents
       .map(doc => {
@@ -90,11 +142,20 @@ async function fetchFirestorePixels(preset = '1080x1080') {
       })
       .filter(p => (p.boardId || '1080x1080') === preset);
   } catch (err) {
-    return [];
+    return localPixels;
   }
 }
 
-async function saveFirestorePixel(pixel) {
+async function savePixel(pixel) {
+  // Always save to local file storage for offline capability
+  saveLocalFilePixel(pixel);
+
+  // If in offline mode, skip remote network calls
+  if (process.env.PIXEL_PICKER_MODE === 'offline') {
+    return;
+  }
+
+  // Save to Cloud Firestore
   const docId = `${pixel.boardId || '1080x1080'}_${pixel.x}_${pixel.y}`;
   const url = `${FIRESTORE_BASE_URL}/pixels/${docId}`;
 
@@ -271,7 +332,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const preset = args.preset || '1080x1080';
 
   if (name === 'get_board') {
-    const pixels = await fetchFirestorePixels(preset);
+    const pixels = await fetchPixels(preset);
     const config = BOARD_PRESETS[preset] || BOARD_PRESETS['1080x1080'];
 
     if (args.format === 'ascii_preview') {
@@ -303,7 +364,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'get_pixel') {
-    const pixels = await fetchFirestorePixels(preset);
+    const pixels = await fetchPixels(preset);
     const target = pixels.find(p => p.x === args.x && p.y === args.y);
     return {
       content: [
@@ -328,7 +389,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       boardId: preset
     };
 
-    await saveFirestorePixel(pixel);
+    await savePixel(pixel);
     return {
       content: [
         {
@@ -344,7 +405,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const now = Date.now();
 
     for (const p of items) {
-      await saveFirestorePixel({
+      await savePixel({
         x: p.x,
         y: p.y,
         type: p.type || 'color',
@@ -368,11 +429,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'clear_board') {
-    const existing = await fetchFirestorePixels(preset);
+    const existing = await fetchPixels(preset);
     const now = Date.now();
 
     for (const p of existing) {
-      await saveFirestorePixel({
+      await savePixel({
         x: p.x,
         y: p.y,
         type: 'color',
@@ -401,7 +462,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error('Missing Vestaboard token. Pass token argument or set VESTABOARD_TOKEN environment variable.');
     }
 
-    const pixels = await fetchFirestorePixels('22x6');
+    const pixels = await fetchPixels('22x6');
     const matrix = Array.from({ length: 6 }, () => Array(22).fill(0));
     const pMap = new Map();
     pixels.forEach(p => pMap.set(`${p.x},${p.y}`, p));
@@ -484,7 +545,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
   if (uri.startsWith('pixelpicker://board/')) {
     const preset = uri.replace('pixelpicker://board/', '');
-    const pixels = await fetchFirestorePixels(preset);
+    const pixels = await fetchPixels(preset);
     return {
       contents: [
         {
