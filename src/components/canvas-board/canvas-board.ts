@@ -71,8 +71,9 @@ export class AppCanvasBoard extends LitElement {
     };
     window.addEventListener('time-travel-closed', this.boundTimeTravelClosedHandler);
 
-    // Full Board Load / Reset
+    // Full Board Load / Reset & State Listener
     this.unsubscribeBoardStore = boardStore.subscribe(() => {
+      this.requestUpdate();
       if (this.renderer) {
         const vp = boardStore.getViewport();
         this.renderer.setDimensions(vp.boardWidth, vp.boardHeight);
@@ -156,6 +157,17 @@ export class AppCanvasBoard extends LitElement {
 
     const vp = boardStore.getViewport();
 
+    // Enter Key Line Jump (Move to start of next line)
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selected.y < vp.boardHeight - 1) {
+        editorStore.setSelectedCoord({ x: 0, y: selected.y + 1 });
+      } else {
+        editorStore.setSelectedCoord({ x: 0, y: selected.y });
+      }
+      return;
+    }
+
     // Arrow Key Navigation
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -224,9 +236,11 @@ export class AppCanvasBoard extends LitElement {
         composed: true
       }));
 
-      // Auto advance cursor right
+      // Auto advance cursor: next column or wrap to start of next line
       if (selected.x < vp.boardWidth - 1) {
         editorStore.setSelectedCoord({ x: selected.x + 1, y: selected.y });
+      } else if (selected.y < vp.boardHeight - 1) {
+        editorStore.setSelectedCoord({ x: 0, y: selected.y + 1 });
       }
       return;
     }
@@ -256,9 +270,11 @@ export class AppCanvasBoard extends LitElement {
         composed: true
       }));
 
-      // Auto advance cursor right
+      // Auto advance cursor: next column or wrap to start of next line
       if (selected.x < vp.boardWidth - 1) {
         editorStore.setSelectedCoord({ x: selected.x + 1, y: selected.y });
+      } else if (selected.y < vp.boardHeight - 1) {
+        editorStore.setSelectedCoord({ x: 0, y: selected.y + 1 });
       }
     }
   }

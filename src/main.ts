@@ -107,13 +107,6 @@ window.addEventListener('apply-edit', async (e: Event) => {
 window.addEventListener('toggle-online-mode', () => {
   const nextState = !boardStore.getIsOnline();
   boardStore.setIsOnline(nextState);
-
-  if (nextState) {
-    showVestaboardToast('Connected to Global Board (Online Sync)');
-  } else {
-    showVestaboardToast('Switched to Local Offline Mode (Zero Churn)');
-  }
-
   initApp();
 });
 
