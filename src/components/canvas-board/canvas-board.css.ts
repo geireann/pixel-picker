@@ -61,6 +61,48 @@ export const canvasBoardStyles = css`
     font-family: 'Space Mono', monospace;
   }
 
+  button.mode-pill {
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    transition: all 0.15s ease;
+  }
+
+  button.mode-pill:hover {
+    border-color: #09090b;
+  }
+
+  .mode-pill.offline {
+    background: #f4f4f5;
+    border-color: #d4d4d8;
+    color: #71717a;
+  }
+
+  .mode-pill.online {
+    background: #2563eb;
+    border-color: #1d4ed8;
+    color: #ffffff;
+  }
+
+  .mode-pill.online span.label {
+    color: #ffffff;
+  }
+
+  .mode-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .mode-pill.offline .mode-dot {
+    background: #71717a;
+  }
+
+  .mode-pill.online .mode-dot {
+    background: #4ade80;
+    box-shadow: 0 0 6px #4ade80;
+  }
+
   .controls-bar {
     position: absolute;
     top: 14px;

@@ -444,11 +444,13 @@ export class AppCanvasBoard extends LitElement {
     const selected = editorStore.getSelectedCoord();
     const coordText = selected ? `X: ${selected.x}, Y: ${selected.y}` : (this.hoverCoord ? `X: ${this.hoverCoord.x}, Y: ${this.hoverCoord.y}` : 'X: --, Y: --');
     const zoomText = `${Math.round(vp.zoom * 100 / (Math.min(window.innerWidth / vp.boardWidth, window.innerHeight / vp.boardHeight)))}%`;
+    const isOnline = boardStore.getIsOnline();
 
     return renderCanvasBoardPresentation({
       coordText,
       zoomText,
       isTimeTravelOpen: this.isTimeTravelOpen,
+      isOnline,
       onZoomIn: () => this.zoomAtPoint(1.25, window.innerWidth / 2, window.innerHeight / 2),
       onZoomOut: () => this.zoomAtPoint(0.8, window.innerWidth / 2, window.innerHeight / 2),
       onResetView: () => this.centerBoard(),
@@ -456,7 +458,10 @@ export class AppCanvasBoard extends LitElement {
         this.isTimeTravelOpen = !this.isTimeTravelOpen;
         this.dispatchEvent(new CustomEvent('toggle-time-travel', { detail: { open: this.isTimeTravelOpen }, bubbles: true, composed: true }));
       },
-      onOpenHelp: () => this.dispatchEvent(new CustomEvent('open-help', { bubbles: true, composed: true }))
+      onOpenHelp: () => this.dispatchEvent(new CustomEvent('open-help', { bubbles: true, composed: true })),
+      onToggleOnline: () => {
+        this.dispatchEvent(new CustomEvent('toggle-online-mode', { bubbles: true, composed: true }));
+      }
     });
   }
 }

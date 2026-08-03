@@ -5,11 +5,13 @@ export interface CanvasBoardProps {
   coordText: string;
   zoomText: string;
   isTimeTravelOpen: boolean;
+  isOnline: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
   onToggleTimeTravel: () => void;
   onOpenHelp: () => void;
+  onToggleOnline: () => void;
 }
 
 export function renderCanvasBoardPresentation(props: CanvasBoardProps): TemplateResult {
@@ -23,6 +25,14 @@ export function renderCanvasBoardPresentation(props: CanvasBoardProps): Template
         <span class="label">ZOOM</span>
         <span class="val">${props.zoomText}</span>
       </div>
+      <button
+        class="hud-pill mode-pill ${props.isOnline ? 'online' : 'offline'}"
+        title=${props.isOnline ? 'Online (Global Board Connected) — Click to switch to Offline Mode' : 'Offline (Local Board Only) — Click to connect to Online Global Board'}
+        @click=${props.onToggleOnline}
+      >
+        <span class="mode-dot"></span>
+        <span class="label">${props.isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+      </button>
     </div>
 
     <div class="controls-bar">

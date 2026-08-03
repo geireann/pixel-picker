@@ -26,7 +26,7 @@ const wsService = new WebSocketService();
 const historyService = new HistoryService();
 let unsubscribeCloudRealtime: (() => void) | null = null;
 
-// Initial Data & Route Fetch
+// Initial Data & Route Fetch (OFFLINE BY DEFAULT)
 async function initApp() {
   const currentPreset = getPresetFromPath();
   boardStore.setPreset(currentPreset);
@@ -39,13 +39,26 @@ async function initApp() {
     canvasBoard.centerBoard();
   }
 
+  const isOnline = boardStore.getIsOnline();
+
+  if (!isOnline) {
+    // OFFLINE MODE: Load 100% locally from device storage, zero network churn!
+    if (unsubscribeCloudRealtime) {
+      unsubscribeCloudRealtime();
+      unsubscribeCloudRealtime = null;
+    }
+    const localPixels = boardStore.loadLocalPixels(currentPreset);
+    boardStore.setPixels(localPixels);
+    return;
+  }
+
+  // ONLINE MODE: Connect to Cloud Firestore & Realtime Delta Stream
   const pixels = await boardService.fetchInitialBoard(currentPreset);
   boardStore.setPixels(pixels);
 
   const timeline = await historyService.fetchHistoryTimeline(currentPreset);
   historyStore.setTimeline(timeline.earliest, timeline.latest, timeline.latest, timeline.totalEdits);
 
-  // Subscribe to Cloud Realtime Delta Stream across devices
   if (unsubscribeCloudRealtime) unsubscribeCloudRealtime();
   unsubscribeCloudRealtime = boardService.subscribeToCloudRealtime(currentPreset, (pixel: Pixel) => {
     if (boardStore.getIsLive()) {
@@ -60,35 +73,6 @@ initApp();
 window.addEventListener('popstate', () => {
   initApp();
 });
-
-// WebSocket Event Listeners (Local & Cloud WS Sync)
-wsService.subscribe((event) => {
-  if (event.type === 'INIT') {
-    const { pixels, activeUsers, preset } = event.data;
-    if (preset && preset === boardStore.getPreset()) {
-      if (pixels) boardStore.setPixels(pixels);
-      if (activeUsers) updateActiveUsersUI(activeUsers);
-    }
-  } else if (event.type === 'PIXEL_UPDATED') {
-    const pixel: Pixel = event.data;
-    const currentPreset = boardStore.getPreset();
-    const targetBoard = pixel.boardId || currentPreset;
-
-    if (targetBoard === currentPreset && boardStore.getIsLive()) {
-      boardStore.updatePixel(pixel);
-    }
-  } else if (event.type === 'USER_COUNT_UPDATED') {
-    updateActiveUsersUI(event.data.activeUsers);
-  }
-});
-
-function updateActiveUsersUI(count: number) {
-  boardStore.setActiveUsers(count);
-  const el = document.getElementById('active-users-count');
-  if (el) {
-    el.textContent = `${count} ${count === 1 ? 'CONNECTED' : 'CONNECTED'}`;
-  }
-}
 
 // App Level Event Delegation & Controller
 window.addEventListener('apply-edit', async (e: Event) => {
@@ -108,16 +92,29 @@ window.addEventListener('apply-edit', async (e: Event) => {
     boardId
   };
 
-  // Immediate local O(1) store update & flip animation
+  // 1. Always save to local device storage & perform $O(1)$ canvas flip
+  boardStore.saveLocalPixel(pixel);
   boardStore.updatePixel(pixel);
 
-  // 1. Send via WebSocket if connected
-  wsService.sendEdit({ ...payload, boardId });
+  // 2. Only dispatch network requests when in ONLINE mode
+  if (boardStore.getIsOnline()) {
+    wsService.sendEdit({ ...payload, boardId });
+    await boardService.savePixelToFirestore(pixel);
+    analyticsService.trackEvent('apply_edit', { boardId, type: payload.pixelType });
+  }
+});
 
-  // 2. Persist directly to Cloud Firestore
-  await boardService.savePixelToFirestore(pixel);
+window.addEventListener('toggle-online-mode', () => {
+  const nextState = !boardStore.getIsOnline();
+  boardStore.setIsOnline(nextState);
 
-  analyticsService.trackEvent('apply_edit', { boardId, type: payload.pixelType });
+  if (nextState) {
+    showVestaboardToast('Connected to Global Board (Online Sync)');
+  } else {
+    showVestaboardToast('Switched to Local Offline Mode (Zero Churn)');
+  }
+
+  initApp();
 });
 
 window.addEventListener('toggle-time-travel', (e: Event) => {

@@ -8,11 +8,13 @@ describe('renderCanvasBoardPresentation', () => {
       coordText: 'X: 10, Y: 20',
       zoomText: '100%',
       isTimeTravelOpen: false,
+      isOnline: false,
       onZoomIn: vi.fn(),
       onZoomOut: vi.fn(),
       onResetView: vi.fn(),
       onToggleTimeTravel: vi.fn(),
       onOpenHelp: vi.fn(),
+      onToggleOnline: vi.fn(),
       ...overrides
     };
   }

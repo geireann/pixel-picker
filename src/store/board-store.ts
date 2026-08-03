@@ -18,8 +18,44 @@ class BoardStore {
   };
   private activeUsers = 1;
   private isLive = true;
+  private isOnline = false; // OFFLINE BY DEFAULT
   private listeners: Set<StoreListener> = new Set();
   private pixelListeners: Set<PixelUpdateListener> = new Set();
+
+  public getIsOnline(): boolean {
+    return this.isOnline;
+  }
+
+  public setIsOnline(online: boolean) {
+    this.isOnline = online;
+    this.notify();
+  }
+
+  public loadLocalPixels(preset: BoardPreset = this.activePreset): Pixel[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`pixelpicker_local_pixels_${preset}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public saveLocalPixel(pixel: Pixel) {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const preset = pixel.boardId || this.activePreset;
+      const key = `pixelpicker_local_pixels_${preset}`;
+      const existing = this.loadLocalPixels(preset);
+      const filtered = existing.filter(p => !(p.x === pixel.x && p.y === pixel.y));
+      filtered.push(pixel);
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch {
+      // Ignore quota errors
+    }
+  }
 
   public getPreset(): BoardPreset {
     return this.activePreset;
