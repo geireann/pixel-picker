@@ -8,13 +8,15 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "server": "node server/server.js"
+    "server": "node server/server.js",
+    "mcp": "node mcp-server/index.js"
   },
   "dependencies": {
-    "lit": "^3.1.2",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^4.19.2",
-    "ws": "^8.16.0",
-    "sqlite3": "^5.1.7"
+    "lit": "^3.1.2",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
