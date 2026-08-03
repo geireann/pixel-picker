@@ -64,4 +64,21 @@ describe('VestaboardService', () => {
       expect(matrix[3][5]).toBe(64); // Orange -> 64
     });
   });
+
+  describe('Rate Limiter (15s cooldown)', () => {
+    it('enforces 15 second rate limit between consecutive API requests', async () => {
+      const matrix = Array.from({ length: VESTABOARD_ROWS }, () => Array(VESTABOARD_COLS).fill(0));
+      const { resetVestaboardCooldownForTesting, sendToVestaboard } = await import('../src/services/vestaboard-service');
+
+      resetVestaboardCooldownForTesting();
+
+      // First request passes rate-limiter check
+      const p1 = sendToVestaboard(matrix, 'test-token');
+      // Second immediate request is rate limited
+      const p2 = await sendToVestaboard(matrix, 'test-token');
+
+      expect(p2.success).toBe(false);
+      expect(p2.message).toContain('Rate limit: Please try again in');
+    });
+  });
 });

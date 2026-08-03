@@ -131,6 +131,19 @@ export function clearStoredVestaboardToken(): void {
   }
 }
 
+let lastVestaboardSendTime = 0;
+export const VESTABOARD_COOLDOWN_MS = 15000; // 15 seconds limit
+
+export function getVestaboardCooldownRemaining(): number {
+  const elapsed = Date.now() - lastVestaboardSendTime;
+  if (elapsed >= VESTABOARD_COOLDOWN_MS) return 0;
+  return Math.ceil((VESTABOARD_COOLDOWN_MS - elapsed) / 1000);
+}
+
+export function resetVestaboardCooldownForTesting(): void {
+  lastVestaboardSendTime = 0;
+}
+
 export async function sendToVestaboard(
   matrix: number[][],
   token: string = getStoredVestaboardToken()
@@ -138,6 +151,16 @@ export async function sendToVestaboard(
   if (!token) {
     return { success: false, message: 'No Vestaboard API token configured.' };
   }
+
+  const remainingSeconds = getVestaboardCooldownRemaining();
+  if (remainingSeconds > 0) {
+    return {
+      success: false,
+      message: `Rate limit: Please try again in ${remainingSeconds} second${remainingSeconds === 1 ? '' : 's'}.`
+    };
+  }
+
+  lastVestaboardSendTime = Date.now();
 
   try {
     const res = await fetch('https://cloud.vestaboard.com/', {
