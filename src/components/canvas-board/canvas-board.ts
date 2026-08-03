@@ -131,26 +131,16 @@ export class AppCanvasBoard extends LitElement {
       return;
     }
 
-    // Triple-tap 'S' shortcut (Active ONLY on 22x6 board)
-    if (!isInput && (e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Vestaboard Sync Shortcut: Cmd + Shift + V or Ctrl + Shift + V (Active ONLY on 22x6 board)
+    if (!isInput && (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
       const currentPreset = boardStore.getPreset();
       if (currentPreset === '22x6') {
-        this.sTapCount++;
-        if (this.sTapTimer) clearTimeout(this.sTapTimer);
-
-        if (this.sTapCount >= 3) {
-          this.sTapCount = 0;
-          e.preventDefault();
-          this.dispatchEvent(new CustomEvent('trigger-vestaboard-sync', {
-            bubbles: true,
-            composed: true
-          }));
-          return;
-        } else {
-          this.sTapTimer = setTimeout(() => {
-            this.sTapCount = 0;
-          }, 600);
-        }
+        e.preventDefault();
+        this.dispatchEvent(new CustomEvent('trigger-vestaboard-sync', {
+          bubbles: true,
+          composed: true
+        }));
+        return;
       }
     }
 

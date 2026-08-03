@@ -53,7 +53,7 @@ export function renderVestaboardModalPresentation(props: VestaboardModalProps): 
         </div>
 
         <div class="shortcut-tip">
-          💡 Tip: Triple-tap <kbd>S</kbd> anytime on the 22x6 board to sync directly to Vestaboard!
+          💡 Tip: Press <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>) on the 22x6 board to sync!
         </div>
       </div>
     </div>
